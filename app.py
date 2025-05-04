@@ -8,8 +8,13 @@ import torch
 from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
 from PIL import Image
 import uvicorn
+from controlnet_aux import LineartDetector
+
+detector = LineartDetector.from_pretrained("lllyasviel/Annotators")
+
 
 app = FastAPI(title="ControlNet Sketch to Image API")
+
 
 # CORS 설정 추가
 app.add_middleware(
@@ -26,13 +31,13 @@ pipe = None
 # 모델 로드 함수
 @app.on_event("startup")
 async def load_model():
-    global pipep
+    global pipe
     
     try:
         print("모델 로딩 중...")
         # ControlNet 모델 불러오기
         controlnet = ControlNetModel.from_pretrained(
-            "lllyasviel/sd-controlnet-scribble", 
+            "lllyasviel/control_v11p_sd15_lineart", 
             torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
         )
         
@@ -72,10 +77,15 @@ def encode_image_to_base64(image):
 async def generate_from_sketch(
     sketch: UploadFile = File(...),
     prompt: str = Form("photorealistic image"),
-    negative_prompt: Optional[str] = Form("low quality, bad drawing, ugly, deformed"),
+    negative_prompt: Optional[str] = Form(None),
     guidance_scale: Optional[float] = Form(7.5),
     num_inference_steps: Optional[int] = Form(30),
-    seed: Optional[int] = Form(-1)
+    seed: Optional[int] = Form(-1),
+    # additional_prompt: Optional[str] = Form("best quality, extremely detailed"),
+    # preprocessor_name: Optional[str] = Form("Lineart"),
+    # image_resolution: Optional[int] = Form(512),
+    # preprocess_resolution: Optional[int] = Form(512),
+    # num_samples: Optional[int] = Form(1)
 ):
     if pipe is None:
         raise HTTPException(status_code=500, detail="모델이 로드되지 않았습니다.")
@@ -87,7 +97,9 @@ async def generate_from_sketch(
         
         # 스케치 이미지 전처리
         sketch_image = sketch_image.convert("RGB")
-        
+        sketch_image.save("request_image.png","PNG")
+        control_image = detector(sketch_image, resolution=512)
+        control_image.save("check_img.png","PNG")
         # 시드 설정
         if seed != -1:
             generator = torch.Generator(device="cuda" if torch.cuda.is_available() else "cpu").manual_seed(seed)
@@ -96,19 +108,25 @@ async def generate_from_sketch(
         
         print(f"이미지 생성 중... 프롬프트: '{prompt}', 단계: {num_inference_steps}")
         
+        print(type(control_image))
         # 이미지 생성
         output = pipe(
             prompt=prompt,
             negative_prompt=negative_prompt,
-            image=sketch_image,
+            image=control_image,
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,
+            # additional_prompt = additional_prompt,
+            # preprocessor_name = preprocessor_name,
+            # image_resolution = image_resolution,
+            # preprocess_resolution = preprocess_resolution,
+            num_samples = 5,
             generator=generator
         )
         
         # 생성된 이미지 처리
         generated_image = output.images[0]
-        
+        generated_image.save("generated_image.png","PNG")
         base64_image = encode_image_to_base64(generated_image)
         
         print("이미지 생성 완료")
