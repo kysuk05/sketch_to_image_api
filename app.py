@@ -78,15 +78,8 @@ async def generate_from_sketch(
     sketch: UploadFile = File(...),
     prompt: str = Form("photorealistic image"),
     negative_prompt: Optional[str] = Form(None),
-    guidance_scale: Optional[float] = Form(7.5),
-    num_inference_steps: Optional[int] = Form(30),
-    seed: Optional[int] = Form(-1),
-    # additional_prompt: Optional[str] = Form("best quality, extremely detailed"),
-    # preprocessor_name: Optional[str] = Form("Lineart"),
-    # image_resolution: Optional[int] = Form(512),
-    # preprocess_resolution: Optional[int] = Form(512),
-    # num_samples: Optional[int] = Form(1)
 ):
+
     if pipe is None:
         raise HTTPException(status_code=500, detail="모델이 로드되지 않았습니다.")
     
@@ -100,6 +93,11 @@ async def generate_from_sketch(
         sketch_image.save("request_image.png","PNG")
         control_image = detector(sketch_image, resolution=512)
         control_image.save("check_img.png","PNG")
+
+        guidance_scale = 7.5
+        num_inference_steps = 30
+        seed = -1
+
         # 시드 설정
         if seed != -1:
             generator = torch.Generator(device="cuda" if torch.cuda.is_available() else "cpu").manual_seed(seed)
@@ -116,10 +114,6 @@ async def generate_from_sketch(
             image=control_image,
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,
-            # additional_prompt = additional_prompt,
-            # preprocessor_name = preprocessor_name,
-            # image_resolution = image_resolution,
-            # preprocess_resolution = preprocess_resolution,
             num_samples = 5,
             generator=generator
         )
