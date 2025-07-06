@@ -12,14 +12,10 @@ async def recommend_from_image(
     prompt: str = Form(...)
 ):
     try:
-        # 업로드된 이미지 읽기
         contents = await image.read()
         input_image = Image.open(io.BytesIO(contents)).convert("RGB")
 
-        # 🔍 여기서 이미지 검색 기능이 들어갈 자리
-        # 예시: search_results = image_search(input_image, prompt)
-
-        # 현재는 더미 데이터 반환 (주소는 지도 링크 URL)
+        # 더미 데이터 반환 
         dummy_results = [
             {
                 "image": "data:image/png;base64,base64encodedimagedata1",
