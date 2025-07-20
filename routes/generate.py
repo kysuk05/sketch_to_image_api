@@ -39,7 +39,6 @@ async def generate_from_sketch(
 
         base64_data = base64_image.split(",")[-1]
 
-        # 디코딩해서 파일로 저장
         with open("output.png", "wb") as f:
             f.write(base64.b64decode(base64_data))
 

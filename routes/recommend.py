@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
-from utils.image_upload import upload_to_catbox  # ✅ 여기에서 import
+from utils.image_upload import upload_to_catbox
 import tempfile
 import os
 import requests
@@ -22,26 +22,44 @@ async def recommend_from_image(
 
         image_url = upload_to_catbox(tmp_path)
 
-        serpapi_params = {
-            'engine': 'google_reverse_image',
-            'image_url': image_url,
-            'api_key': SERPAPI_API_KEY
-        }
-        serpapi_resp = requests.get("https://serpapi.com/search", params=serpapi_params)
-        if serpapi_resp.status_code != 200:
-            raise Exception(f"SerpAPI 요청 실패: {serpapi_resp.text}")
-
-        serpapi_data = serpapi_resp.json()
-        image_results = serpapi_data.get("image_results", [])
-
         results = []
-        for match in image_results[:5]:
-            results.append({
-                "image": match.get("thumbnail"), 
-                "title": match.get("title"),
-                "link": match.get("link")
-            })
-        print("🧾 SerpAPI 응답 전체:", serpapi_data)
+        start = 0 
+
+        while len(results) < 5:
+            serpapi_params = {
+                'engine': 'google_shopping',
+                'image_url': image_url,
+                'q': prompt,
+                'api_key': SERPAPI_API_KEY,
+                'start': start
+            }
+
+            serpapi_resp = requests.get("https://serpapi.com/search", params=serpapi_params)
+            if serpapi_resp.status_code != 200:
+                raise Exception(f"SerpAPI 요청 실패: {serpapi_resp.text}")
+
+            serpapi_data = serpapi_resp.json()
+            shopping_results = serpapi_data.get("shopping_results", [])
+            if not shopping_results:
+                break
+
+            for item in shopping_results:
+                if not item.get("thumbnail"):
+                    continue
+                price = item.get("price") if "price" in item else None
+
+                results.append({
+                    "image": item.get("thumbnail"),
+                    "title": item.get("title"),
+                    "link": item.get("product_link"),
+                    "price": price
+                })
+
+                if len(results) >= 5:
+                    break
+
+            start += len(shopping_results)
+
         return JSONResponse(content={
             "status": "success",
             "prompt": prompt,
