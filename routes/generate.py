@@ -3,8 +3,10 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from PIL import Image
 import io, base64, torch
+
 from utils.image_utils import encode_image_to_base64
 from utils.detector import detector
+from config import RESOLUTION, INFERENCE_STEPS, GUIDANCE_SCALE, NUM_SAMPLES, OUTPUT_PATH
 
 router = APIRouter()
 pipe = None
@@ -19,28 +21,28 @@ async def generate_from_sketch(
         raise HTTPException(status_code=500, detail="모델이 로드되지 않았습니다.")
 
     try:
-        contents = await sketch.read()
-        sketch_image = Image.open(io.BytesIO(contents)).convert("RGB")
-        control_image = detector(sketch_image, resolution=512)
+        image_bytes = await sketch.read()
+        sketch_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        control_image = detector(sketch_image, resolution=RESOLUTION)
 
-        generator = torch.Generator(device="cuda" if torch.cuda.is_available() else "cpu") if -1 != -1 else None
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        generator = torch.Generator(device=device)
 
         output = pipe(
             prompt=prompt,
             negative_prompt=negative_prompt,
             image=control_image,
-            num_inference_steps=30,
-            guidance_scale=7.5,
-            num_samples=5,
-            generator=generator
+            num_inference_steps=INFERENCE_STEPS,
+            guidance_scale=GUIDANCE_SCALE,
+            num_samples=NUM_SAMPLES,
+            generator=generator,
         )
 
         base64_image = encode_image_to_base64(output.images[0])
+        image_data = base64.b64decode(base64_image.split(",")[-1])
 
-        base64_data = base64_image.split(",")[-1]
-
-        with open("output.png", "wb") as f:
-            f.write(base64.b64decode(base64_data))
+        with open(OUTPUT_PATH, "wb") as f:
+            f.write(image_data)
 
         return JSONResponse(content={
             "status": "success",
