@@ -1,2 +1,31 @@
-*.png
-/__pycache__
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Env
+.env
+.env.*
+*.env
+
+# HuggingFace / Models
+.cache/
+huggingface/
+models/
+checkpoints/
+*.safetensors
+*.pth
+
+# Logs & outputs
+logs/
+outputs/
+results/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker / WSL
+DockerDesktopWSL/
+disk/
