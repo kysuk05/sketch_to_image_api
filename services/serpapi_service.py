@@ -6,13 +6,12 @@ load_dotenv()
 
 class SerpApiClient:
     @staticmethod
-    async def fetch_shopping_results(image_url: str, prompt: str, limit: int = 5) -> list:
+    async def fetch_shopping_results(prompt: str, limit: int = 5) -> list:
         results = []
         async with httpx.AsyncClient() as client:
             params = {
-                "engine": "google_lens",
-                "url": image_url,
-                "text": prompt,
+                "engine": "google_shopping", 
+                "q": prompt,                    
                 "api_key": os.getenv("SERPAPI_API_KEY"),
             }
             resp = await client.get("https://serpapi.com/search", params=params)
@@ -21,10 +20,9 @@ class SerpApiClient:
 
             data = resp.json()
 
-
             shopping_results = data.get("shopping_results", [])
             if not shopping_results:
-                shopping_results = data.get("visual_matches", [])
+                shopping_results = data.get("organic_results", [])
 
             for item in shopping_results[:limit]:
                 if not item.get("thumbnail"):
